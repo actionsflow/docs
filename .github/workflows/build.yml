@@ -1,0 +1,172 @@
+name: Actionsflow Docs Deploy
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [redeploy]
+env:
+  SSH_DEPLOY_KEY: ${{secrets.SSH_DEPLOY_KEY }}
+jobs:
+  init:
+    runs-on: ubuntu-latest
+    # outpus result type is string, true will be "true"
+    outputs:
+      sourceBranch: ${{ steps.sourceBranch.outputs.result }}
+      deployBranch: ${{ steps.deployBranch.outputs.result }}
+      isDeployBranchExist: ${{ steps.isDeployBranchExist.outputs.result }}
+      isSourceBranch: ${{ steps.isSourceBranch.outputs.result }}
+      isValidForBuild: ${{ steps.isValidForBuild.outputs.result }}
+    steps:
+      - id: sourceBranch
+        name: get source branch
+        uses: actions/github-script@v2
+        with:
+          script: |
+            if(context.repo.repo === `${context.repo.owner}.github.io`){
+              return 'source'
+            }else{
+              return 'main'
+            }
+          result-encoding: string
+      - id: deployBranch
+        name: get deploy branch
+        uses: actions/github-script@v2
+        with:
+          script: |
+            if(context.repo.repo === `${context.repo.owner}.github.io`){
+              return 'main'
+            }else{
+              return 'gh-pages'
+            }
+          result-encoding: string
+      - id: isSourceBranch
+        name: get current branch is source branch
+        uses: actions/github-script@v2
+        env:
+          SOURCE_BRANCH: ${{ steps.sourceBranch.outputs.result }}
+        with:
+          script: |
+            if(`refs/heads/${process.env.SOURCE_BRANCH}` === context.ref){
+              return true
+            }else{
+              return false
+            }
+          result-encoding: string
+      - id: isDeployBranchExist
+        name: get is deploy branch exist
+        uses: actions/github-script@v2
+        env:
+          DEPLOY_BRANCH: ${{ steps.deployBranch.outputs.result }}
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            return github.repos.getBranch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              branch: process.env.DEPLOY_BRANCH
+            }).then(data=>{
+              return true;
+            }).catch((e)=>{
+              if(e && e.status===404){
+                // then manual trigger
+                return false
+              }else{
+                core.setFailed('check isDeployBranchExist error: ',e.message)
+              }
+            })
+      - id: isValidForBuild
+        name: check if valid for build
+        uses: actions/github-script@v2
+        env:
+          RESPONSE: ${{ steps.blogaAuth1ClientResponse.outputs.response }}
+        with:
+          script: |
+            if(process.env.SSH_DEPLOY_KEY){
+              return true
+            }else{
+              return false
+            }
+          result-encoding: string
+
+  build:
+    needs: init
+    runs-on: ubuntu-latest
+    name: Build
+    env:
+      GATSBY_ALGOLIA_APP_ID: Z0OPVMC7SS
+      GATSBY_ALGOLIA_SEARCH_KEY: 38dce1886782307efeb1a4bed2d82959
+      ALGOLIA_ADMIN_KEY: ${{secrets.ALGOLIA_ADMIN_KEY}}
+      GATSBY_ALGOLIA_INDEX_NAME: dev_actionsflow_docs
+    steps:
+      - name: Dump INIT_OUTPUTS
+        run: echo $INIT_OUTPUTS
+        env:
+          INIT_OUTPUTS: ${{ toJson(needs.init.outputs) }}
+      - name: checkout repo
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Get gatsby cache key from last build
+        id: get-gatsby-latest-cache-key-file
+        if: needs.init.outputs.isDeployBranchExist == 'true'
+        uses: actions/checkout@v2
+        continue-on-error: true
+        with:
+          ref: ${{ needs.init.outputs.deployBranch }}
+          path: .bloga-last-build
+      - name: Get gatsby-latest-cache-key content
+        if: ${{ steps.get-gatsby-latest-cache-key-file.outcome == 'success' }}
+        id: gatsby-latest-cache-key
+        run: echo "::set-output name=key::$(cat .bloga-last-build/_gatsby-latest-cache-key.txt)"
+      - name: Gatsby cache directory restore
+        uses: actions/cache@v2
+        if: ${{ steps.gatsby-latest-cache-key.outcome == 'success' }}
+        with:
+          key: ${{ runner.os }}-${{ steps.gatsby-latest-cache-key.outputs.key }}
+          path: |
+            .cache
+            public
+      - name: Cache node modules
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+      - name: Install Dependencies
+        run: npm install
+      - name: Build app
+        run: npm run build
+      - name: Get gatsby latest cache folder hash
+        id: gatsby-latest-cache-hash
+        uses: theowenyoung/folder-hash@v2.0.1
+        with:
+          path: |
+            .cache
+            public
+      - name: Save gatsby cache directory
+        uses: actions/cache@v2
+        with:
+          key: ${{ runner.os }}-gatsby-cache-directory-${{ steps.gatsby-latest-cache-hash.outputs.hash}}
+          path: |
+            .cache
+            public
+      - name: Save cache key to file
+        run: echo gatsby-cache-directory-${{ steps.gatsby-latest-cache-hash.outputs.hash}} > public/_gatsby-latest-cache-key.txt
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3.6.1
+        with:
+          deploy_key: ${{ secrets.SSH_DEPLOY_KEY }}
+          publish_dir: ./public
+          force_orphan: true
+          publish_branch: ${{ needs.init.outputs.deployBranch }}
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          cname: ${{ needs.init.outputs.cname }}
