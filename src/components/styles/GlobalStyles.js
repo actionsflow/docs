@@ -477,7 +477,6 @@ export const baseStyles = css`
     display: flex;
     align-items: center;
     position: relative;
-    width: 100%;
     padding-right: 35px;
     padding-left: 15px;
   }

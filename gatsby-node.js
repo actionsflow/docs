@@ -106,7 +106,6 @@ exports.onCreateNode = ({ node, getNode, actions }) => {
     // packages/actionsflow-interface/README
     const packageDocRegex = new RegExp('packages/actionsflow\\-(.+?)/README');
 
-    console.log('value', value);
     if (packageDocRegex.test(value)) {
       const regexResult = value.match(packageDocRegex);
 
@@ -124,7 +123,6 @@ exports.onCreateNode = ({ node, getNode, actions }) => {
 
     // awesome actionsflow package doc
 
-    console.log('value', value);
     if (value === 'awesome-actionsflow/readme') {
       value = `awesome`;
       // change node formatter
