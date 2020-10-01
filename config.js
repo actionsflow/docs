@@ -17,7 +17,11 @@ const config = {
     social: ``,
     links: [
       { text: 'Triggers', link: '/triggers/' },
-      { text: 'Workflows', link: '/explore/' },
+      {
+        text: 'Workflows',
+        external: true,
+        link: 'https://github.com/actionsflow/awesome-actionsflow',
+      },
       { text: 'Reference', link: '/reference/' },
       { text: 'Github', external: true, link: 'https://github.com/actionsflow/actionsflow' },
     ],
