@@ -44,6 +44,7 @@ const config = {
       '/creating-triggers/',
       '/webhook/',
       '/actions/',
+      '/self-hosted/',
       '/reference/',
       '/faqs/',
       '/compare/',
