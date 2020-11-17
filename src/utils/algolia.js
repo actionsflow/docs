@@ -8,7 +8,7 @@ const pageQuery = `{
         fields {
           slug
         }
-        headings {
+        headings(depth: h2) {
           value
         }
         frontmatter {
