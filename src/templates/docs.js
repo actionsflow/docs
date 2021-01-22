@@ -29,7 +29,7 @@ export default class MDXRuntimeTest extends Component {
 
     const navItems = allMdx.edges
       .map(({ node }) => node.fields.slug)
-      .filter(slug => {
+      .filter((slug) => {
         let pathArr = slug.split('/');
 
         let suffix = pathArr[pathArr.length - 2];
@@ -39,7 +39,7 @@ export default class MDXRuntimeTest extends Component {
       .sort()
       .reduce(
         (acc, cur) => {
-          if (forcedNavOrder.find(url => url === cur)) {
+          if (forcedNavOrder.find((url) => url === cur)) {
             return { ...acc, [cur]: [cur] };
           }
 
@@ -49,7 +49,7 @@ export default class MDXRuntimeTest extends Component {
             prefix = prefix + '/';
           }
 
-          if (prefix && forcedNavOrder.find(url => url === `/${prefix}`)) {
+          if (prefix && forcedNavOrder.find((url) => url === `/${prefix}`)) {
             return { ...acc, [`/${prefix}`]: [...acc[`/${prefix}`], cur] };
           } else {
             return { ...acc, items: [...acc.items, cur] };
@@ -63,7 +63,7 @@ export default class MDXRuntimeTest extends Component {
         return acc.concat(navItems[cur]);
       }, [])
       .concat(navItems.items)
-      .map(slug => {
+      .map((slug) => {
         if (slug) {
           const { node } = allMdx.edges.find(({ node }) => node.fields.slug === slug);
 
@@ -92,7 +92,6 @@ export default class MDXRuntimeTest extends Component {
     } else {
       pageTitle = title;
     }
-    console.log('mdx.frontmatter.githubEditLink', mdx.frontmatter);
     return (
       <Layout {...this.props}>
         <Helmet>
